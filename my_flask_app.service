@@ -3,21 +3,23 @@ Description=My Flask Web App
 After=network.target
 
 [Service]
-User=azureuser # Ensure this is correct (azureuser on Azure VM, navabshariff on local)
-Group=azureuser # Ensure this is correct
-
-# The absolute path to your application's directory
-WorkingDirectory=/opt/my_flask_app
+User=azureuser
+Group=azureuser
 
 # Load environment variables from a file that will be created by custom_data
+# This file will contain MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, APP_VERSION etc.
 EnvironmentFile=/etc/my_flask_app.env
 
-# The command to execute: Call the wrapper script
-ExecStart=/bin/bash /opt/my_flask_app/start_app_in_venv.sh
+# The absolute path to your application's directory on the VM
+WorkingDirectory=/opt/my_flask_app
+
+# The command to execute:
+ExecStart=/opt/my_flask_app/venv/bin/python3 /opt/my_flask_app/app.py
 
 Restart=on-failure
 RestartSec=10
 
+# Allow app.py to manage its own logs by writing to files
 StandardOutput=inherit
 StandardError=inherit
 
