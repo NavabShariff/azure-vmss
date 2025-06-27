@@ -1,0 +1,36 @@
+[Unit]
+Description=My Flask Web App
+After=network.target
+# After=mysql.service # Uncomment if MySQL is on the same VM and managed by Systemd
+
+[Service]
+User=navabshariff
+Group=navabshariff
+
+# The absolute path to your application's directory
+WorkingDirectory=/home/navabshariff/shariff/azure/vmss/python-web-app
+
+# Environment variables for your application.
+# For VMSS deployment, these would come from cloud-init or other configuration.
+Environment="MYSQL_HOST=127.0.0.1"
+Environment="MYSQL_USER=root"
+Environment="MYSQL_PASSWORD=mysecretpassword"
+Environment="MYSQL_DATABASE=userdata_db"
+Environment="APP_VERSION=V1"
+Environment="FLASK_SECRET_KEY=a6f3b9e8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0"
+
+# The command to execute:
+# Point directly to your virtual environment's python3 interpreter
+# and then your app.py file.
+ExecStart=/home/navabshariff/shariff/azure/vmss/python-web-app/venv/bin/python3 /home/navabshariff/shariff/azure/vmss/python-web-app/app.py
+
+Restart=on-failure
+RestartSec=10
+
+# IMPORTANT: These are NOT set to 'file:' because app.py manages its own files.
+# Systemd will capture anything *else* sent to stdout/stderr by the ExecStart process.
+StandardOutput=inherit # Inherit from ExecStart (where app.py sends its logs to file)
+StandardError=inherit # Inherit from ExecStart (where app.py sends its errors to file)
+
+[Install]
+WantedBy=multi-user.target
