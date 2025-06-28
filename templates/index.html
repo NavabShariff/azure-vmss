@@ -30,7 +30,6 @@
             color: #666;
             margin-bottom: 20px;
         }
-        /* Message styling */
         .message {
             padding: 10px 15px;
             margin-bottom: 20px;
@@ -80,14 +79,24 @@
         input[type="submit"]:hover {
             background-color: #218838;
         }
+        .app-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="version">App Version: {{ app_version }}</div>
+        <div class="app-info">
+            <div class="hostname">Hostname: {{ hostname }}</div>
+            <div class="version">App Version: {{ app_version }}</div>
+        </div>
         <h1>User Data Submission</h1>
 
-        {# Loop through flashed messages and display them #}
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}

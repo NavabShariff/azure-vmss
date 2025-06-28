@@ -5,13 +5,18 @@ import pymysql.cursors
 import os
 import secrets
 import logging
-from logging.handlers import RotatingFileHandler # For basic log rotation
+from logging.handlers import RotatingFileHandler
+import socket # Import the socket module to get hostname
 
 app = Flask(__name__)
 
 # --- Application Configuration ---
 app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
 APP_VERSION = os.getenv('APP_VERSION', 'V1')
+
+# Get the hostname of the current machine
+HOSTNAME = socket.gethostname()
+
 
 # Database Configuration
 DB_HOST = os.getenv('MYSQL_HOST')
@@ -20,31 +25,24 @@ DB_PASSWORD = os.getenv('MYSQL_PASSWORD')
 DB_NAME = os.getenv('MYSQL_DATABASE')
 
 # --- Configure Logging for the Application and Flask Requests ---
-# Set Flask's default logger level
 app.logger.setLevel(logging.INFO)
 
-# Remove any default handlers Flask might add in debug mode to prevent duplicates
 for handler in app.logger.handlers:
     app.logger.removeHandler(handler)
 
-# Create a file handler for the main app log
-# Using RotatingFileHandler for basic log rotation (preventing single huge log file)
-# Max 1 MB per file, keep 5 backup files
 log_file_path = '/var/log/my_flask_app/app.log'
 file_handler = RotatingFileHandler(log_file_path, maxBytes=1024 * 1024, backupCount=5)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s')
 file_handler.setFormatter(formatter)
 app.logger.addHandler(file_handler)
 
-# Also capture werkzeug (Flask's internal server) logs
 werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.setLevel(logging.INFO)
-werkzeug_logger.addHandler(file_handler) # Send werkzeug logs to the same file
+werkzeug_logger.addHandler(file_handler)
 
-# For errors, you might want a separate error log (optional, but good for separation)
 error_log_file_path = '/var/log/my_flask_app/app_error.log'
 error_handler = RotatingFileHandler(error_log_file_path, maxBytes=1024 * 1024, backupCount=5)
-error_handler.setLevel(logging.ERROR) # Only log ERROR and CRITICAL messages
+error_handler.setLevel(logging.ERROR)
 error_handler.setFormatter(formatter)
 app.logger.addHandler(error_handler)
 
@@ -72,7 +70,8 @@ def get_db_connection():
 @app.route('/')
 def index():
     app.logger.info("Accessing home page.")
-    return render_template('index.html', app_version=APP_VERSION)
+    # Pass hostname to the template
+    return render_template('index.html', app_version=APP_VERSION, hostname=HOSTNAME)
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -139,19 +138,16 @@ def health_check():
         if connection:
             connection.close()
             app.logger.info("Health check: Database connection OK.")
-            return jsonify({"status": "healthy", "database_connection": "ok", "app_version": APP_VERSION}), 200
+            return jsonify({"status": "healthy", "database_connection": "ok", "app_version": APP_VERSION, "hostname": HOSTNAME}), 200
         else:
             app.logger.error("Health check: Database connection FAILED.")
-            return jsonify({"status": "unhealthy", "database_connection": "failed", "app_version": APP_VERSION}), 500
+            return jsonify({"status": "unhealthy", "database_connection": "failed", "app_version": APP_VERSION, "hostname": HOSTNAME}), 500
     except Exception as e:
         app.logger.critical(f"Health check failed due to unexpected error: {e}")
-        return jsonify({"status": "unhealthy", "error": str(e), "app_version": APP_VERSION}), 500
+        return jsonify({"status": "unhealthy", "error": str(e), "app_version": APP_VERSION, "hostname": HOSTNAME}), 500
 
 
 if __name__ == '__main__':
-    # Initial database and table setup
-    # Note: When Systemd runs this, it executes this block.
-    # It's generally better to use separate migration scripts for production.
     conn = None
     try:
         if all([DB_HOST, DB_USER, DB_PASSWORD]):
@@ -190,6 +186,4 @@ if __name__ == '__main__':
         if conn and conn.open:
             conn.close()
 
-    # This runs Flask's development server.
-    # In a real production setup, you'd use a WSGI server like Gunicorn/Waitress.
     app.run(host='0.0.0.0', port=5000, debug=True)
